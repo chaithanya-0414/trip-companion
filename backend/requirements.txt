@@ -10,3 +10,4 @@ langchain-community==0.3.7
 anyio>=4.8.0
 httpx>=0.28.1
 python-multipart==0.0.9
+twilio>=9.3.0

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from routers import expenses, itinerary, users, settlements, chat, trips
+from routers import expenses, itinerary, users, settlements, chat, trips, whatsapp
 
 app = FastAPI(
     title="TripSync AI API",
@@ -40,6 +40,7 @@ app.include_router(itinerary.router,   prefix="/itinerary",   tags=["Itinerary"]
 app.include_router(users.router,       prefix="/users",       tags=["Users"])
 app.include_router(settlements.router, prefix="/settlements", tags=["Settlements"])
 app.include_router(trips.router,       prefix="/trips",       tags=["Trips"])
+app.include_router(whatsapp.router,    prefix="/whatsapp",    tags=["WhatsApp"])
 
 
 # ─── Health check ─────────────────────────────────────────────────────────────
