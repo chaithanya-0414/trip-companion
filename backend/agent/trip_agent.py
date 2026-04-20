@@ -110,8 +110,9 @@ Return ONLY the JSON array, no markdown.
 def add_expense(amount: float, paid_by: str, category: str, description: str = "", proof_url: str = "", day: int = None) -> str:
     """
     Add a new expense to the trip.
-    category must be one of: food, travel, stay, misc, activity.
-    paid_by is the name of the person who paid.
+    amount: The numeric amount spent (e.g. 1200.50). MUST be a number, not a string.
+    category: One of food, travel, stay, misc, activity.
+    paid_by: Name of the person who paid.
     """
     ctx = _ctx_var.get()
     valid_cats = {"food", "travel", "stay", "misc", "activity"}
@@ -219,10 +220,10 @@ def create_itinerary(destination: str, duration_days: int, group_size: int, budg
     """
     Generate a detailed day-wise itinerary for a group trip.
     destination: City or region name.
-    duration_days: Number of days (1–21).
-    group_size: Number of people (2–50).
-    budget_per_person: Budget per person in INR (0 = no limit).
-    preferences: Comma-separated preferences like 'adventure, culture, food'.
+    duration_days: Number of days (integer, e.g. 7). MUST be a pure number.
+    group_size: Number of people (integer, e.g. 15). MUST be a pure number.
+    budget_per_person: Budget per person in INR (float, e.g. 50000). 0 = no limit.
+    preferences: Comma-separated preferences.
     start_date: Optional start date in YYYY-MM-DD format.
     """
     ctx = _ctx_var.get()
@@ -342,34 +343,47 @@ TOOLS = [
     get_users,
 ]
 
-SYSTEM_PROMPT = """You are TripSync AI — a smart, professional group travel companion agent.
+SYSTEM_PROMPT = """You are TripSync AI — a friendly, smart group travel companion chatbot.
 
-You help manage trips for groups of 10–20 people over multi-day journeys (up to 21 days).
+You help groups of people manage their trips: expenses, itineraries, settlements, and logistics.
+You work on both a web app AND a WhatsApp bot, so you must handle natural, conversational language.
 
-## Your Capabilities:
-- Plan day-wise itineraries
-- Add and track group expenses
-- Calculate smart settlements (minimize transactions)
-- Manage trip logistics and suggestions
-- Admin controls (approve/reject expenses, update itinerary)
+## How to respond:
 
-## Rules (STRICTLY ENFORCE):
-1. ALWAYS use tools for data operations — NEVER simulate or fabricate data
-2. NEVER approve/reject expenses unless user role = "admin"
-3. NEVER update itinerary unless user role = "admin"
-4. ALWAYS confirm after every tool execution
-5. If inputs are incomplete, ASK for missing information
-6. Detect and warn about over-budget or overloaded itineraries
-7. Be proactive — suggest improvements when relevant
+### For trip actions → USE THE APPROPRIATE TOOL:
+| What the user says (examples) | Tool to call |
+|---|---|
+| "add 500 for lunch", "I paid ₹1200 for hotel", "spent 800 on fuel" | add_expense |
+| "show expenses", "what did we spend", "list all costs" | get_expenses |
+| "who owes whom", "calculate split", "how do we settle", "settlements" | calculate_splits |
+| "plan a trip to Goa", "create itinerary for 5 days", "make a 3-day plan" | create_itinerary |
+| "show itinerary", "what's the plan", "day 2 activities" | get_itinerary |
+| "update day 3", "change day 1 activities" | update_itinerary |
+| "approve expense X", "ok expense X" | approve_expense |
+| "reject expense X", "cancel expense X" | reject_expense |
+| "who's in the group", "list members", "team members" | get_users |
 
-## Response Style:
-- Professional, clear, structured
-- Use emojis for visual clarity
-- Format expenses, itineraries, settlements neatly
-- Be concise but complete
+### For general conversation → answer naturally WITHOUT tools:
+- Greetings ("hi", "thanks", "great") → respond warmly
+- General travel questions ("best time to visit Goa?") → answer from knowledge
+- Trip advice ("what should we pack?") → give helpful suggestions
+- Anything NOT requiring the database → respond conversationally
 
-## Categories for Expenses:
-food | travel | stay | misc | activity
+## Input understanding:
+- "500 for dinner by Rahul" → amount=500, category="food", paid_by="Rahul", description="dinner"
+- "plan Manali 7 days 12 people 5000 budget" → destination="Manali", duration_days=7, group_size=12, budget_per_person=5000
+- "Riya paid 2000 for hotel" → amount=2000, category="stay", paid_by="Riya"
+- If required info is genuinely missing (e.g. no amount given for expense), ask ONE clear question
+
+## Rules:
+1. Use tools ONLY for actual data operations — never fabricate data.
+2. Pass numeric args as pure numbers (7, not "7 days").
+3. Admin role = full access. Non-admin = cannot approve/reject/update itinerary.
+4. After every tool call, confirm clearly what was done.
+5. Keep responses concise — no unnecessary walls of text.
+6. Use emojis tastefully for clarity and friendliness.
+
+## Expense categories: food | travel | stay | misc | activity
 
 Current user role: {user_role}
 Trip ID: {trip_id}
@@ -388,8 +402,8 @@ def _build_agent(user_role: str, trip_id: str) -> AgentExecutor:
         agent=agent,
         tools=TOOLS,
         verbose=False,
-        max_iterations=5,
-        handle_parsing_errors=True,
+        max_iterations=6,
+        handle_parsing_errors="Parsing error — please restate your request clearly.",
         return_intermediate_steps=True,
     )
 
