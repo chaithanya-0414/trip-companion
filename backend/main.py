@@ -20,11 +20,15 @@ app = FastAPI(
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+_origins_stripped = [o.strip() for o in _raw_origins]
+_wildcard = "*" in _origins_stripped
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"] if _wildcard else _origins_stripped,
+    # credentials=True is incompatible with allow_origins=["*"] per CORS spec
+    allow_credentials=not _wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )
